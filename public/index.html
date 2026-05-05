@@ -4,41 +4,214 @@
   <meta charset="utf-8" />
   <title>Godot Profile Viewer</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="icon" type="image/png" href="/dcl-logo.png" />
+  <link rel="apple-touch-icon" href="/dcl-logo.png" />
   <style>
-    :root { color-scheme: dark; }
+    :root {
+      color-scheme: dark;
+      --compare-bg-hex: 1a1f29;
+      --compare-bg: #1a1f29;
+    }
+    * { box-sizing: border-box; }
     body {
       margin: 0;
       min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
       background: #0e1116;
       color: #e6edf3;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
-    .card {
-      width: min(720px, 92vw);
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    header.app-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    header.app-header .logo {
+      width: 56px;
+      height: 56px;
+      object-fit: contain;
+      flex-shrink: 0;
+    }
+    header.app-header .titles { flex: 1; min-width: 0; }
+    h1 { margin: 0; font-size: 22px; }
+    p.sub { margin: 4px 0 0; color: #8b949e; font-size: 14px; }
+    .brand-tag {
+      display: inline-block;
+      margin-top: 4px;
+      font-size: 11px;
+      color: #6e7681;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .users-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: #161b22;
+      border: 1px solid #30363d;
+      font-size: 13px;
+      color: #c9d1d9;
+    }
+    .users-badge .live-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #3fb950;
+      box-shadow: 0 0 0 0 rgba(63, 185, 80, 0.6);
+      animation: live 2s ease-in-out infinite;
+    }
+    @keyframes live {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(63, 185, 80, 0.6); }
+      50% { box-shadow: 0 0 0 6px rgba(63, 185, 80, 0); }
+    }
+    footer.app-footer {
+      margin-top: 12px;
+      padding-top: 16px;
+      border-top: 1px solid #21262d;
+      font-size: 11px;
+      color: #6e7681;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      word-break: break-all;
+    }
+    footer.app-footer a { color: #6e7681; text-decoration: none; }
+    footer.app-footer a:hover { color: #c9d1d9; }
+
+    .panel {
       background: #161b22;
       border: 1px solid #30363d;
       border-radius: 12px;
-      padding: 28px 32px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      padding: 16px 20px;
     }
-    h1 { margin: 0 0 4px 0; font-size: 22px; }
-    p.sub { margin: 0 0 20px 0; color: #8b949e; font-size: 14px; }
-    form { display: flex; gap: 8px; }
-    input[name="address"] {
+
+    /* Queue strip */
+    [hidden] { display: none !important; }
+    .queue-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .queue-row h2 { margin: 0; font-size: 12px; color: #8b949e; text-transform: uppercase; letter-spacing: 0.06em; }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      background: #21262d;
+      border: 1px solid #30363d;
+      color: #c9d1d9;
+    }
+    .pill.idle { background: transparent; color: #6e7681; }
+    .pill.summary { background: #1f6feb22; border-color: #388bfd44; color: #79c0ff; }
+    .pill.summary.full { background: #f8514922; border-color: #f8514988; color: #ff7b72; }
+    .pill.processing { background: #1f6feb22; border-color: #388bfd; color: #79c0ff; }
+    .pill.failed { background: #f8514922; border-color: #f8514988; color: #ff7b72; cursor: pointer; }
+    .pill.failed:hover { background: #f8514933; border-color: #f85149; }
+    .pill.failed .tag { color: #ff7b72; }
+
+    /* Failure modal */
+    .failure-modal-box {
+      width: min(720px, 92vw);
+      max-height: 80vh;
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      cursor: default;
+      box-shadow: 0 12px 32px rgba(0,0,0,0.6);
+    }
+    .failure-modal-box .head {
+      padding: 14px 18px;
+      border-bottom: 1px solid #30363d;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .failure-modal-box .head .title { font-size: 14px; font-weight: 600; color: #ff7b72; }
+    .failure-modal-box .head .input {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 12px;
+      color: #c9d1d9;
+      word-break: break-all;
+    }
+    .failure-modal-box .head .when { font-size: 11px; color: #8b949e; }
+    .failure-modal-box pre {
+      margin: 0;
+      padding: 14px 18px;
+      overflow: auto;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 12px;
+      color: #e6edf3;
+      white-space: pre-wrap;
+      word-break: break-word;
       flex: 1;
+    }
+    .failure-modal-box .actions {
+      padding: 10px 18px;
+      border-top: 1px solid #30363d;
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+    .failure-modal-box .actions button {
+      background: #21262d;
+      color: #c9d1d9;
+      border: 1px solid #30363d;
+      padding: 6px 12px;
+      font-size: 12px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .failure-modal-box .actions button:hover { border-color: #58a6ff; color: #fff; }
+    .pill .tag {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #8b949e;
+      padding: 1px 5px;
+      border-radius: 3px;
+      background: #161b22;
+      border: 1px solid #30363d;
+    }
+    .pill .dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: #79c0ff;
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 1; }
+    }
+
+    /* Form */
+    textarea {
+      width: 100%;
+      min-height: 120px;
       padding: 10px 12px;
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: 14px;
+      font-size: 13px;
       background: #0d1117;
       color: #e6edf3;
       border: 1px solid #30363d;
       border-radius: 6px;
+      resize: vertical;
     }
+    .form-actions { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
     button {
-      padding: 10px 18px;
+      padding: 8px 16px;
       background: #238636;
       color: white;
       border: 1px solid rgba(240,246,252,0.1);
@@ -47,78 +220,854 @@
       cursor: pointer;
     }
     button:disabled { opacity: 0.6; cursor: progress; }
-    #status { margin-top: 16px; min-height: 20px; font-size: 14px; color: #8b949e; }
-    #status.error { color: #f85149; }
-    .results { margin-top: 20px; display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
-    .results figure { margin: 0; background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 12px; text-align: center; }
-    .results img { max-width: 100%; height: auto; image-rendering: pixelated; }
-    .results figcaption { margin-top: 8px; font-size: 12px; color: #8b949e; }
-    .name { font-weight: 600; }
+    .hint { font-size: 12px; color: #8b949e; }
+    #submit-status { font-size: 13px; color: #8b949e; min-height: 18px; }
+    #submit-status.error { color: #f85149; }
+
+    /* Gallery */
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 16px;
+    }
+    .card {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 10px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: border-color 0.15s ease, transform 0.15s ease;
+    }
+    .card:hover { border-color: #58a6ff; transform: translateY(-2px); }
+    .card.selected {
+      border-color: #58a6ff;
+      box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.35);
+    }
+    .card .body-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1 / 2;
+      background: linear-gradient(180deg, #1a1f29 0%, #0d1117 100%);
+      overflow: hidden;
+    }
+    .card .body-img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      image-rendering: pixelated;
+      display: block;
+      cursor: pointer;
+    }
+    .card .face-img {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      object-fit: cover;
+      image-rendering: pixelated;
+      background: #161b22;
+      border: 2px solid #30363d;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+      cursor: zoom-in;
+      transform-origin: top right;
+      transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+      will-change: transform;
+      z-index: 2;
+    }
+    .card .face-img:hover {
+      transform: scale(1.7);
+      border-color: #58a6ff;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.7);
+    }
+    .card .rebuild-btn {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      border-radius: 50%;
+      background: rgba(22, 27, 34, 0.85);
+      border: 1px solid #30363d;
+      color: #c9d1d9;
+      font-size: 16px;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+      z-index: 2;
+      transition: color 0.15s, border-color 0.15s, background 0.15s, transform 0.15s;
+    }
+    .card .rebuild-btn:hover {
+      color: #79c0ff;
+      border-color: #58a6ff;
+      background: rgba(31, 111, 235, 0.18);
+    }
+    .card .rebuild-btn:disabled {
+      cursor: progress;
+      opacity: 0.7;
+    }
+    .card .rebuild-btn .rebuild-icon {
+      display: inline-block;
+      transform-origin: center;
+    }
+    .card .rebuild-btn.spinning .rebuild-icon {
+      animation: spin 0.9s linear infinite;
+    }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .card .meta-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+    }
+    .card .meta-row .meta { flex: 1; min-width: 0; }
+    .card .profile-link {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      margin-top: 8px;
+      padding: 8px 10px;
+      background: #21262d;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      color: #c9d1d9;
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.2;
+      cursor: pointer;
+      text-align: center;
+      transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+    }
+    .card .profile-link:hover {
+      color: #79c0ff;
+      border-color: #58a6ff;
+      background: #1f6feb22;
+    }
+    .card .profile-link .arrow {
+      font-size: 13px;
+      line-height: 1;
+    }
+
+    /* Compare panel (latest render side-by-side with Unity preview) */
+    .compare-head {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .compare-head h2 {
+      margin: 0;
+      font-size: 12px;
+      color: #8b949e;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .compare-name { font-size: 14px; color: #e6edf3; font-weight: 600; }
+    .compare-name.unnamed { color: #6e7681; font-style: italic; font-weight: 500; }
+    .compare-sub {
+      font-size: 12px;
+      color: #8b949e;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    .compare-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 360px));
+      gap: 16px;
+      justify-content: center;
+    }
+    .compare-cell {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-width: 0;
+    }
+    .compare-label {
+      font-size: 11px;
+      color: #8b949e;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    .compare-frame {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1 / 2;
+      background: var(--compare-bg);
+      border: 1px solid #30363d;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .compare-frame img,
+    .compare-frame iframe {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
+      display: block;
+    }
+    .compare-frame img {
+      object-fit: contain;
+      image-rendering: pixelated;
+      cursor: zoom-in;
+    }
+    @media (max-width: 700px) {
+      .compare-grid { grid-template-columns: 1fr; }
+    }
+
+    /* Image modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(1, 4, 9, 0.85);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      z-index: 1000;
+      cursor: zoom-out;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal-backdrop img {
+      max-width: 100%;
+      max-height: 100%;
+      image-rendering: pixelated;
+      box-shadow: 0 12px 32px rgba(0,0,0,0.6);
+      border-radius: 8px;
+      cursor: default;
+    }
+    .modal-close {
+      position: absolute;
+      top: 16px;
+      right: 20px;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: #161b22;
+      border: 1px solid #30363d;
+      color: #c9d1d9;
+      font-size: 18px;
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-close:hover { color: #fff; border-color: #58a6ff; }
+    .card .info {
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      border-top: 1px solid #21262d;
+    }
+    .card .name {
+      color: #e6edf3;
+      font-size: 14px;
+      font-weight: 600;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .card .name.unnamed { color: #6e7681; font-style: italic; font-weight: 500; }
+    .card .meta {
+      font-size: 11px;
+      color: #8b949e;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .card .meta.time { font-family: -apple-system, sans-serif; }
+    .empty { color: #8b949e; font-size: 13px; padding: 12px 0; grid-column: 1 / -1; text-align: center; }
   </style>
 </head>
 <body>
-  <main class="card">
-    <h1>Godot Profile Viewer</h1>
-    <p class="sub">Renders a Decentraland avatar from an Ethereum address using godot-explorer.</p>
+  <div class="container">
+    <header class="app-header">
+      <img class="logo" src="/dcl-logo.png" alt="DCL Regenesis Labs" />
+      <div class="titles">
+        <h1>Godot Profile Viewer</h1>
+        <p class="sub">Renders Decentraland avatars via godot-explorer. Submit ETH addresses or profile deployment IDs (max 10 at a time).</p>
+        <span class="brand-tag">DCL Regenesis Labs</span>
+      </div>
+      <div class="users-badge" title="Currently active viewers">
+        <span class="live-dot"></span>
+        <span><span id="users-count">1</span> online</span>
+      </div>
+    </header>
 
-    <form id="form" autocomplete="off">
-      <input name="address" placeholder="0x..." spellcheck="false" required />
-      <button type="submit">Render</button>
-    </form>
+    <section class="panel">
+      <div class="queue-row">
+        <h2>Queue</h2>
+        <span id="queue-summary" class="pill">idle</span>
+        <span id="queue-processing"></span>
+        <span id="queue-pending"></span>
+      </div>
+      <div class="queue-row" id="queue-failures-row" hidden style="margin-top: 10px;">
+        <h2 style="color: #f85149;">Recent failures</h2>
+        <span id="queue-failures"></span>
+      </div>
+    </section>
 
-    <div id="status"></div>
+    <section class="panel">
+      <textarea id="inputs" placeholder="One per line. Examples:
+0x1234...abcd
+bafkreia24gv4ucsdyihp7imfnfc524mr4py3re6dkg62gm7cnb4qgy4v3e" spellcheck="false"></textarea>
+      <div class="form-actions">
+        <button id="submit-btn">Enqueue</button>
+        <span class="hint">Up to 10 per submission. Duplicates already in the queue are skipped.</span>
+      </div>
+      <div id="submit-status"></div>
+    </section>
 
-    <div class="results" id="results" hidden>
-      <figure>
-        <img id="bodyImg" alt="body" />
-        <figcaption>body</figcaption>
-      </figure>
-      <figure>
-        <img id="faceImg" alt="face" />
-        <figcaption>face</figcaption>
-      </figure>
+    <section class="panel" id="compare-panel">
+      <div class="compare-head">
+        <h2>Comparison</h2>
+        <span id="compare-name" class="compare-name"></span>
+        <span id="compare-sub" class="compare-sub"></span>
+      </div>
+      <div id="compare-empty" class="empty">No renders yet — submit an address or deployment ID above.</div>
+      <div id="compare-content" class="compare-grid" hidden>
+        <div class="compare-cell">
+          <div class="compare-label">Unity preview</div>
+          <div class="compare-frame">
+            <iframe id="compare-iframe" allow="autoplay; fullscreen; xr-spatial-tracking" referrerpolicy="no-referrer" title="Decentraland Unity wearable preview"></iframe>
+          </div>
+        </div>
+        <div class="compare-cell">
+          <div class="compare-label">Godot render</div>
+          <div class="compare-frame">
+            <img id="compare-body" alt="latest body render" />
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="queue-row" style="margin-bottom: 12px;">
+        <h2>Last 10 results</h2>
+      </div>
+      <div id="gallery" class="gallery"></div>
+    </section>
+
+    <footer class="app-footer">
+      <div>godot-explorer image: <span id="godot-image">…</span></div>
+    </footer>
+  </div>
+
+  <div id="image-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-label="Image preview">
+    <button class="modal-close" id="modal-close" aria-label="Close">×</button>
+    <img id="modal-img" alt="" />
+  </div>
+
+  <div id="failure-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-label="Failure details">
+    <button class="modal-close" id="failure-modal-close" aria-label="Close">×</button>
+    <div class="failure-modal-box">
+      <div class="head">
+        <div class="title">Render failed</div>
+        <div class="input" id="failure-input"></div>
+        <div class="when" id="failure-when"></div>
+      </div>
+      <pre id="failure-output"></pre>
+      <div class="actions">
+        <button id="failure-copy">Copy</button>
+        <button id="failure-dismiss">Close</button>
+      </div>
     </div>
-  </main>
+  </div>
 
   <script type="module">
-    const form = document.getElementById("form");
-    const status = document.getElementById("status");
-    const results = document.getElementById("results");
-    const bodyImg = document.getElementById("bodyImg");
-    const faceImg = document.getElementById("faceImg");
-    const button = form.querySelector("button");
+    const inputsEl = document.getElementById("inputs");
+    const submitBtn = document.getElementById("submit-btn");
+    const submitStatus = document.getElementById("submit-status");
+    const queueSummary = document.getElementById("queue-summary");
+    const queueProcessing = document.getElementById("queue-processing");
+    const queuePending = document.getElementById("queue-pending");
+    const queueFailuresRow = document.getElementById("queue-failures-row");
+    const queueFailures = document.getElementById("queue-failures");
+    const gallery = document.getElementById("gallery");
+    const usersCount = document.getElementById("users-count");
+    const godotImageEl = document.getElementById("godot-image");
 
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const address = new FormData(form).get("address").toString().trim();
-      status.classList.remove("error");
-      status.textContent = "Rendering… first request may take 30–60s while the docker image is pulled.";
-      results.hidden = true;
-      button.disabled = true;
+    const CLIENT_ID_KEY = "gpv-client-id";
+    let clientId = sessionStorage.getItem(CLIENT_ID_KEY);
+    if (!clientId) {
+      clientId = (crypto.randomUUID && crypto.randomUUID()) || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      sessionStorage.setItem(CLIENT_ID_KEY, clientId);
+    }
 
-      const started = performance.now();
+    async function api(path, opts = {}) {
+      const headers = { ...(opts.headers ?? {}), "x-client-id": clientId };
+      return fetch(path, { ...opts, headers });
+    }
+
+    let queueCap = 20;
+
+    function shorten(s, n = 12) {
+      if (!s) return "";
+      return s.length > n * 2 ? `${s.slice(0, n)}…${s.slice(-4)}` : s;
+    }
+
+    function formatRelative(iso) {
+      const t = new Date(iso).getTime();
+      if (Number.isNaN(t)) return "";
+      const diff = Math.max(0, Date.now() - t);
+      const s = Math.floor(diff / 1000);
+      if (s < 5) return "just now";
+      if (s < 60) return `${s}s ago`;
+      const m = Math.floor(s / 60);
+      if (m < 60) return `${m}m ago`;
+      const h = Math.floor(m / 60);
+      if (h < 24) return `${h}h ago`;
+      const d = Math.floor(h / 24);
+      if (d < 7) return `${d}d ago`;
+      return new Date(iso).toLocaleDateString();
+    }
+
+    function kindTag(kind) {
+      return `<span class="tag">${kind === "address" ? "addr" : "dep"}</span>`;
+    }
+
+    function renderQueue(state) {
+      const pending = state.pending ?? [];
+      const processing = state.processing ?? null;
+      const total = pending.length + (processing ? 1 : 0);
+      if (typeof state.maxQueue === "number") queueCap = state.maxQueue;
+      if (typeof state.users === "number") usersCount.textContent = String(state.users);
+
+      if (total === 0) {
+        queueSummary.className = "pill idle";
+        queueSummary.textContent = "idle";
+      } else {
+        queueSummary.className = total >= queueCap ? "pill summary full" : "pill summary";
+        queueSummary.textContent = `${total} / ${queueCap}`;
+      }
+
+      queueProcessing.innerHTML = "";
+      if (processing) {
+        const el = document.createElement("span");
+        el.className = "pill processing";
+        el.innerHTML = `<span class="dot"></span>${kindTag(processing.kind)}<span title="${processing.input}">${shorten(processing.input)}</span>`;
+        queueProcessing.appendChild(el);
+      }
+
+      queuePending.innerHTML = "";
+      for (const job of pending) {
+        const el = document.createElement("span");
+        el.className = "pill";
+        el.innerHTML = `${kindTag(job.kind)}<span title="${job.input}">${shorten(job.input)}</span>`;
+        queuePending.appendChild(el);
+      }
+
+      const failures = state.recentFailures ?? [];
+      queueFailuresRow.hidden = failures.length === 0;
+      queueFailures.innerHTML = "";
+      for (const f of failures) {
+        const el = document.createElement("span");
+        el.className = "pill failed";
+        el.title = "Click to see details";
+        el.innerHTML = `${kindTag(f.kind)}<span>${shorten(f.input)}</span>`;
+        el.addEventListener("click", () => openFailureModal(f));
+        queueFailures.appendChild(el);
+      }
+    }
+
+    const failureModal = document.getElementById("failure-modal");
+    const failureInputEl = document.getElementById("failure-input");
+    const failureWhenEl = document.getElementById("failure-when");
+    const failureOutputEl = document.getElementById("failure-output");
+    const failureCopyBtn = document.getElementById("failure-copy");
+    const failureDismissBtn = document.getElementById("failure-dismiss");
+    const failureCloseBtn = document.getElementById("failure-modal-close");
+
+    function openFailureModal(f) {
+      failureInputEl.textContent = `${f.kind}: ${f.input}`;
+      failureWhenEl.textContent = `failed at ${new Date(f.failedAt).toLocaleString()}`;
+      failureOutputEl.textContent = f.error ?? "(no error message)";
+      failureModal.classList.add("open");
+    }
+    function closeFailureModal() {
+      failureModal.classList.remove("open");
+    }
+    failureCloseBtn.addEventListener("click", closeFailureModal);
+    failureDismissBtn.addEventListener("click", closeFailureModal);
+    failureModal.addEventListener("click", (e) => {
+      if (e.target === failureModal) closeFailureModal();
+    });
+    failureCopyBtn.addEventListener("click", async () => {
+      const txt = `${failureInputEl.textContent}\n${failureWhenEl.textContent}\n\n${failureOutputEl.textContent}`;
       try {
-        const res = await fetch("/api/render", {
+        await navigator.clipboard.writeText(txt);
+        failureCopyBtn.textContent = "Copied";
+        setTimeout(() => (failureCopyBtn.textContent = "Copy"), 1200);
+      } catch {
+        failureCopyBtn.textContent = "Copy failed";
+        setTimeout(() => (failureCopyBtn.textContent = "Copy"), 1200);
+      }
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && failureModal.classList.contains("open")) closeFailureModal();
+    });
+
+    function isEthAddress(s) {
+      return typeof s === "string" && /^0x[0-9a-fA-F]{40}$/.test(s);
+    }
+
+    const COMPARE_BG_HEX = getComputedStyle(document.documentElement)
+      .getPropertyValue("--compare-bg-hex").trim() || "1a1f29";
+
+    function unityPreviewUrl(r) {
+      const params = new URLSearchParams({
+        profile: r.address,
+        mode: "profile",
+        unity: "true",
+        camera: "interactive",
+        projection: "perspective",
+        emote: "idle",
+        panning: "false",
+        lockBeta: "true",
+        background: COMPARE_BG_HEX,
+        disableDefaultWearables: "true",
+      });
+      const p = r.preview;
+      if (p) {
+        if (p.bodyShape) params.set("bodyShape", p.bodyShape);
+        if (p.eyeColor) params.set("eyeColor", p.eyeColor);
+        if (p.hairColor) params.set("hairColor", p.hairColor);
+        if (p.skinColor) params.set("skinColor", p.skinColor);
+      }
+      return `https://wearable-preview.decentraland.org/?${params.toString()}`;
+    }
+
+    let lastGalleryKey = "";
+    let selectedAddress = null;
+    let lastResults = [];
+
+    function galleryKey(results) {
+      const sel = selectedAddress ?? "";
+      if (!results || results.length === 0) return `EMPTY|${sel}`;
+      return (
+        results
+          .map((r) => {
+            const p = r.preview ?? {};
+            const previewKey = `${p.bodyShape ?? ""}|${p.eyeColor ?? ""}|${p.hairColor ?? ""}|${p.skinColor ?? ""}`;
+            return `${r.address}|${r.at}|${r.body}|${r.face ?? ""}|${r.name ?? ""}|${previewKey}`;
+          })
+          .join("\n") + `|sel=${sel}`
+      );
+    }
+
+    function refreshTimes() {
+      for (const el of gallery.querySelectorAll(".meta.time[data-at]")) {
+        el.textContent = formatRelative(el.getAttribute("data-at"));
+      }
+    }
+
+    const compareEmpty = document.getElementById("compare-empty");
+    const compareContent = document.getElementById("compare-content");
+    const compareNameEl = document.getElementById("compare-name");
+    const compareSubEl = document.getElementById("compare-sub");
+    const compareIframe = document.getElementById("compare-iframe");
+    const compareBody = document.getElementById("compare-body");
+
+    let lastCompareKey = "";
+
+    function renderCompare(results) {
+      if (!results || results.length === 0) {
+        compareContent.hidden = true;
+        compareEmpty.hidden = false;
+        if (compareIframe.src && compareIframe.src !== "about:blank") {
+          compareIframe.src = "about:blank";
+        }
+        compareBody.removeAttribute("src");
+        compareNameEl.textContent = "";
+        compareSubEl.textContent = "";
+        lastCompareKey = "";
+        return;
+      }
+      let r = null;
+      if (selectedAddress) {
+        r = results.find((x) => x.address === selectedAddress) ?? null;
+        if (!r) selectedAddress = null;
+      }
+      if (!r) r = results[0];
+      const key = `${r.address}|${r.at}|${r.body}`;
+      if (key === lastCompareKey) {
+        compareSubEl.textContent = `${shorten(r.address, 8)} · ${formatRelative(r.at)}`;
+        return;
+      }
+      lastCompareKey = key;
+
+      compareEmpty.hidden = true;
+      compareContent.hidden = false;
+
+      if (r.name) {
+        compareNameEl.textContent = r.name;
+        compareNameEl.classList.remove("unnamed");
+      } else {
+        compareNameEl.textContent = "(unnamed)";
+        compareNameEl.classList.add("unnamed");
+      }
+      compareSubEl.textContent = `${shorten(r.address, 8)} · ${formatRelative(r.at)}`;
+
+      const cb = encodeURIComponent(r.at);
+      compareBody.src = `/api/results/images/${r.body}?t=${cb}`;
+      compareBody.setAttribute("data-zoom", compareBody.src);
+
+      if (isEthAddress(r.address)) {
+        compareIframe.src = unityPreviewUrl(r);
+      } else {
+        compareIframe.src = "about:blank";
+      }
+    }
+
+    compareBody.addEventListener("click", () => {
+      const src = compareBody.getAttribute("src");
+      if (src) openModal(src);
+    });
+
+    function selectComparison(address) {
+      if (!address || selectedAddress === address) return;
+      selectedAddress = address;
+      renderCompare(lastResults);
+      renderGallery(lastResults);
+    }
+
+    function renderGallery(results) {
+      const key = galleryKey(results);
+      if (key === lastGalleryKey) {
+        refreshTimes();
+        return;
+      }
+      lastGalleryKey = key;
+
+      if (!results || results.length === 0) {
+        gallery.innerHTML = `<div class="empty">No renders yet — submit an address or deployment ID above.</div>`;
+        return;
+      }
+      gallery.innerHTML = "";
+      for (const r of results) {
+        const card = document.createElement("div");
+        const isSelected = r.address === selectedAddress;
+        card.className = isSelected ? "card selected" : "card";
+        card.dataset.address = r.address;
+        const cb = encodeURIComponent(r.at);
+        const bodyUrl = `/api/results/images/${r.body}?t=${cb}`;
+        const faceUrl = r.face ? `/api/results/images/${r.face}?t=${cb}` : null;
+        const nameClass = r.name ? "name" : "name unnamed";
+        const nameText = r.name ?? "(unnamed)";
+        const isEth = isEthAddress(r.address);
+        const profileLink = isEth
+          ? `<a class="profile-link" href="https://decentraland.org/profile/accounts/${r.address}" target="_blank" rel="noopener noreferrer" title="Open profile on decentraland.org" aria-label="Open profile on decentraland.org"><span>Open Decentraland profile</span><span class="arrow">↗</span></a>`
+          : "";
+        const rebuildBtn = isEth
+          ? `<button type="button" class="rebuild-btn" data-rebuild-address="${r.address}" title="Re-render this profile" aria-label="Re-render this profile"><span class="rebuild-icon">↻</span></button>`
+          : "";
+        card.innerHTML = `
+          <div class="body-wrap">
+            <img class="body-img" src="${bodyUrl}" alt="body" loading="lazy" data-compare-address="${r.address}" title="Click to compare this avatar" />
+            ${rebuildBtn}
+            ${faceUrl ? `<img class="face-img" src="${faceUrl}" alt="face" loading="lazy" data-zoom="${faceUrl}" />` : ""}
+          </div>
+          <div class="info">
+            <div class="${nameClass}" title="${nameText}">${nameText}</div>
+            <div class="meta" title="${r.address}">${shorten(r.address, 8)}</div>
+            <div class="meta time" data-at="${r.at}">${formatRelative(r.at)}</div>
+            ${profileLink}
+          </div>
+        `;
+        gallery.appendChild(card);
+      }
+    }
+
+    const imageModal = document.getElementById("image-modal");
+    const modalImg = document.getElementById("modal-img");
+    const modalClose = document.getElementById("modal-close");
+
+    function openModal(src) {
+      modalImg.src = src;
+      imageModal.classList.add("open");
+    }
+    function closeModal() {
+      imageModal.classList.remove("open");
+      modalImg.src = "";
+    }
+
+    async function rebuildAddress(btn) {
+      const address = btn.getAttribute("data-rebuild-address");
+      if (!address || btn.disabled) return;
+      const originalTitle = btn.title;
+      btn.disabled = true;
+      btn.classList.add("spinning");
+      try {
+        const res = await api("/api/jobs", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ address }),
+          body: JSON.stringify({ items: [address] }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+        if ((data.accepted?.length ?? 0) === 0) {
+          btn.title = `Skipped: ${data.rejected?.[0]?.reason ?? "rejected"}`;
+        } else {
+          btn.title = "Re-queued";
+        }
+        refresh();
+      } catch (err) {
+        btn.title = `Failed: ${err.message}`;
+      } finally {
+        setTimeout(() => {
+          btn.classList.remove("spinning");
+          btn.disabled = false;
+          btn.title = originalTitle;
+        }, 1200);
+      }
+    }
+
+    gallery.addEventListener("click", (e) => {
+      const rebuildTarget = e.target.closest("[data-rebuild-address]");
+      if (rebuildTarget) {
+        e.preventDefault();
+        e.stopPropagation();
+        rebuildAddress(rebuildTarget);
+        return;
+      }
+      const compareTarget = e.target.closest("[data-compare-address]");
+      if (compareTarget) {
+        e.preventDefault();
+        selectComparison(compareTarget.getAttribute("data-compare-address"));
+        compareContent.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        return;
+      }
+      const zoomTarget = e.target.closest("[data-zoom]");
+      if (!zoomTarget) return;
+      e.preventDefault();
+      openModal(zoomTarget.getAttribute("data-zoom"));
+    });
+    imageModal.addEventListener("click", (e) => {
+      if (e.target === imageModal) closeModal();
+    });
+    modalClose.addEventListener("click", closeModal);
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape") return;
+      if (imageModal.classList.contains("open")) closeModal();
+    });
+
+    async function refresh() {
+      try {
+        const [q, r] = await Promise.all([
+          api("/api/queue").then((res) => res.json()),
+          api("/api/results").then((res) => res.json()),
+        ]);
+        renderQueue(q);
+        lastResults = Array.isArray(r) ? r : [];
+        renderCompare(lastResults);
+        renderGallery(lastResults);
+      } catch (err) {
+        // network blip — keep last view
+      }
+    }
+
+    function quayManifestUrl(imageRef) {
+      const m = /^quay\.io\/([^@]+)@(sha256:[a-f0-9]+)$/.exec(imageRef);
+      if (!m) return null;
+      return `https://quay.io/repository/${m[1]}/manifest/${m[2]}`;
+    }
+
+    function renderImageRef(imageRef) {
+      if (!imageRef) {
+        godotImageEl.textContent = "(unknown)";
+        return;
+      }
+      const href = quayManifestUrl(imageRef);
+      if (href) {
+        const a = document.createElement("a");
+        a.href = href;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        a.textContent = imageRef;
+        godotImageEl.replaceChildren(a);
+      } else {
+        godotImageEl.textContent = imageRef;
+      }
+    }
+
+    async function loadInfo() {
+      try {
+        const info = await api("/api/info").then((res) => res.json());
+        renderImageRef(info?.godotImage ?? null);
+        if (typeof info?.maxQueue === "number") queueCap = info.maxQueue;
+      } catch {
+        godotImageEl.textContent = "(unavailable)";
+      }
+    }
+
+    submitBtn.addEventListener("click", async () => {
+      const items = inputsEl.value
+        .split(/\r?\n/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+      if (items.length === 0) {
+        submitStatus.classList.add("error");
+        submitStatus.textContent = "Enter at least one address or deployment ID.";
+        return;
+      }
+      if (items.length > 10) {
+        submitStatus.classList.add("error");
+        submitStatus.textContent = "Max 10 items per submission.";
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitStatus.classList.remove("error");
+      submitStatus.textContent = "Submitting…";
+
+      try {
+        const res = await api("/api/jobs", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ items }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
 
-        bodyImg.src = data.body;
-        faceImg.src = data.face ?? data.body;
-        results.hidden = false;
-        const took = ((performance.now() - started) / 1000).toFixed(1);
-        const namePart = data.name ? `${data.name} ` : "";
-        status.textContent = `${namePart}(${data.address}) — rendered in ${took}s`;
+        const acc = data.accepted?.length ?? 0;
+        const rej = data.rejected?.length ?? 0;
+        const parts = [`${acc} enqueued`];
+        if (rej > 0) {
+          const reasons = data.rejected.map((r) => `${shorten(r.input)} (${r.reason})`).join(", ");
+          parts.push(`${rej} skipped: ${reasons}`);
+        }
+        submitStatus.textContent = parts.join(" · ");
+        if (acc > 0) inputsEl.value = "";
+        refresh();
       } catch (err) {
-        status.classList.add("error");
-        status.textContent = `Error: ${err.message}`;
+        submitStatus.classList.add("error");
+        submitStatus.textContent = `Error: ${err.message}`;
       } finally {
-        button.disabled = false;
+        submitBtn.disabled = false;
       }
     });
+
+    loadInfo();
+    refresh();
+    setInterval(refresh, 1000);
   </script>
 </body>
 </html>

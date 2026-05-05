@@ -1,9 +1,7 @@
 import { spawn } from "node:child_process";
-import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fetchProfile, HttpError } from "./catalyst.js";
+import { HttpError } from "./catalyst.js";
 
 function buildPayload({ ethAddress, avatar, catalystUrl }) {
   return {
@@ -23,96 +21,83 @@ function buildPayload({ ethAddress, avatar, catalystUrl }) {
   };
 }
 
-function runDocker({ image, avatarsPath, outputDir, timeoutMs }) {
+function runGodot({ binary, workdir, timeoutMs }) {
   return new Promise((resolve, reject) => {
-    const containerName = `gpv-${randomUUID()}`;
-    const args = [
-      "run",
-      "--rm",
-      "--name",
-      containerName,
-      "-v",
-      `${avatarsPath}:/app/avatars.json:ro`,
-      "-v",
-      `${outputDir}:/app/output`,
-      image,
-    ];
+    const args = ["--rendering-driver", "opengl3", "--avatar-renderer", "--avatars", "avatars.json"];
+    const child = spawn(binary, args, {
+      cwd: workdir,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
 
-    const child = spawn("docker", args, { stdio: ["ignore", "pipe", "pipe"] });
     let stderr = "";
     let stdout = "";
     child.stdout.on("data", (b) => { stdout += b.toString(); });
     child.stderr.on("data", (b) => { stderr += b.toString(); });
 
     const timer = setTimeout(() => {
-      spawn("docker", ["kill", containerName], { stdio: "ignore" });
-      reject(new HttpError(504, `docker run timed out after ${timeoutMs}ms`));
+      child.kill("SIGKILL");
+      reject(new HttpError(504, `godot render timed out after ${timeoutMs}ms`));
     }, timeoutMs);
 
     child.on("error", (err) => {
       clearTimeout(timer);
-      reject(new HttpError(500, `failed to spawn docker: ${err.message}`));
+      reject(new HttpError(500, `failed to spawn godot: ${err.message}`));
     });
 
     child.on("close", (code) => {
       clearTimeout(timer);
-      if (code === 0) {
-        resolve({ stdout, stderr });
-      } else {
-        reject(new HttpError(500, `docker exited ${code}: ${stderr.trim() || stdout.trim()}`));
-      }
+      if (code === 0) resolve({ stdout, stderr });
+      else reject(new HttpError(500, `godot exited ${code}: ${stderr.trim() || stdout.trim()}`));
     });
   });
 }
 
-async function readPngAsDataUrl(path) {
-  const buf = await readFile(path);
-  return `data:image/png;base64,${buf.toString("base64")}`;
+let renderQueue = Promise.resolve();
+function withRenderLock(fn) {
+  const next = renderQueue.then(fn, fn);
+  renderQueue = next.catch(() => {});
+  return next;
 }
 
-export async function renderProfile(address, opts) {
-  const {
-    catalystUrl,
-    dockerImage,
-    timeoutMs,
-  } = opts;
+export async function renderProfile({ profile, catalystUrl, godotBin, godotWorkdir, timeoutMs }) {
+  if (!profile?.ethAddress) {
+    throw new HttpError(500, "profile is missing ethAddress");
+  }
 
-  const profile = await fetchProfile(address, catalystUrl);
-  const tmpDir = join(tmpdir(), `gpv-${randomUUID()}`);
-  const outputDir = join(tmpDir, "output");
-  const avatarsPath = join(tmpDir, "avatars.json");
-
-  try {
-    await mkdir(outputDir, { recursive: true });
-    const payload = buildPayload({
-      ethAddress: profile.ethAddress,
-      avatar: profile.avatar,
-      catalystUrl,
-    });
-    await writeFile(avatarsPath, JSON.stringify(payload, null, 2));
-
-    await runDocker({
-      image: dockerImage,
-      avatarsPath,
-      outputDir,
-      timeoutMs,
-    });
-
+  return withRenderLock(async () => {
+    const avatarsPath = join(godotWorkdir, "avatars.json");
+    const outputDir = join(godotWorkdir, "output");
     const bodyPath = join(outputDir, `${profile.ethAddress}.png`);
     const facePath = join(outputDir, `${profile.ethAddress}_face.png`);
 
-    const [body, face] = await Promise.all([
-      readPngAsDataUrl(bodyPath),
-      readPngAsDataUrl(facePath).catch(() => null),
-    ]);
+    try {
+      await mkdir(outputDir, { recursive: true });
+      const payload = buildPayload({
+        ethAddress: profile.ethAddress,
+        avatar: profile.avatar,
+        catalystUrl,
+      });
+      await writeFile(avatarsPath, JSON.stringify(payload, null, 2));
 
-    return {
-      name: profile.name,
-      address: profile.ethAddress,
-      body,
-      face,
-    };
-  } finally {
-    await rm(tmpDir, { recursive: true, force: true }).catch(() => {});
-  }
+      await runGodot({ binary: godotBin, workdir: godotWorkdir, timeoutMs });
+
+      const [bodyBuffer, faceBuffer] = await Promise.all([
+        readFile(bodyPath),
+        readFile(facePath).catch(() => null),
+      ]);
+
+      return {
+        name: profile.name,
+        address: profile.ethAddress,
+        bodyBuffer,
+        faceBuffer,
+      };
+    } finally {
+      await Promise.all([
+        rm(avatarsPath, { force: true }).catch(() => {}),
+        rm(bodyPath, { force: true }).catch(() => {}),
+        rm(facePath, { force: true }).catch(() => {}),
+      ]);
+    }
+  });
 }

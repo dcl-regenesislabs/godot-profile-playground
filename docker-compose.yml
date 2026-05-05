@@ -1,0 +1,26 @@
+services:
+  godot-profile-viewer:
+    build:
+      context: .
+      args:
+        GODOT_IMAGE: ${GODOT_IMAGE:-quay.io/decentraland/godot-explorer:d45b07049ff3b782d7b4717db6be475abb02bb13}
+    image: godot-profile-viewer:dev
+    container_name: godot-profile-viewer
+    ports:
+      - "${HOST_PORT:-3001}:3000"
+    environment:
+      CATALYST_URL: ${CATALYST_URL:-https://peer.decentraland.org}
+      RENDER_TIMEOUT_MS: ${RENDER_TIMEOUT_MS:-120000}
+      DATA_DIR: /data
+    volumes:
+      - data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  data:
