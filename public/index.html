@@ -4,8 +4,8 @@
   <meta charset="utf-8" />
   <title>Godot Profile Viewer</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <link rel="icon" type="image/png" href="/dcl-logo.png" />
-  <link rel="apple-touch-icon" href="/dcl-logo.png" />
+  <link rel="icon" type="image/png" href="dcl-logo.png" />
+  <link rel="apple-touch-icon" href="dcl-logo.png" />
   <style>
     :root {
       color-scheme: dark;
@@ -499,7 +499,7 @@
 <body>
   <div class="container">
     <header class="app-header">
-      <img class="logo" src="/dcl-logo.png" alt="DCL Regenesis Labs" />
+      <img class="logo" src="dcl-logo.png" alt="DCL Regenesis Labs" />
       <div class="titles">
         <h1>Godot Profile Viewer</h1>
         <p class="sub">Renders Decentraland avatars via godot-explorer. Submit ETH addresses or profile deployment IDs (max 10 at a time).</p>
@@ -611,9 +611,13 @@ bafkreia24gv4ucsdyihp7imfnfc524mr4py3re6dkg62gm7cnb4qgy4v3e" spellcheck="false">
       sessionStorage.setItem(CLIENT_ID_KEY, clientId);
     }
 
+    const BASE = new URL("./", document.baseURI).pathname;
+    function url(path) {
+      return path.startsWith("/") ? `${BASE.replace(/\/$/, "")}${path}` : `${BASE}${path}`;
+    }
     async function api(path, opts = {}) {
       const headers = { ...(opts.headers ?? {}), "x-client-id": clientId };
-      return fetch(path, { ...opts, headers });
+      return fetch(url(path), { ...opts, headers });
     }
 
     let queueCap = 20;
@@ -826,7 +830,7 @@ bafkreia24gv4ucsdyihp7imfnfc524mr4py3re6dkg62gm7cnb4qgy4v3e" spellcheck="false">
       compareSubEl.textContent = `${shorten(r.address, 8)} · ${formatRelative(r.at)}`;
 
       const cb = encodeURIComponent(r.at);
-      compareBody.src = `/api/results/images/${r.body}?t=${cb}`;
+      compareBody.src = url(`/api/results/images/${r.body}?t=${cb}`);
       compareBody.setAttribute("data-zoom", compareBody.src);
 
       if (isEthAddress(r.address)) {
@@ -867,8 +871,8 @@ bafkreia24gv4ucsdyihp7imfnfc524mr4py3re6dkg62gm7cnb4qgy4v3e" spellcheck="false">
         card.className = isSelected ? "card selected" : "card";
         card.dataset.address = r.address;
         const cb = encodeURIComponent(r.at);
-        const bodyUrl = `/api/results/images/${r.body}?t=${cb}`;
-        const faceUrl = r.face ? `/api/results/images/${r.face}?t=${cb}` : null;
+        const bodyUrl = url(`/api/results/images/${r.body}?t=${cb}`);
+        const faceUrl = r.face ? url(`/api/results/images/${r.face}?t=${cb}`) : null;
         const nameClass = r.name ? "name" : "name unnamed";
         const nameText = r.name ?? "(unnamed)";
         const isEth = isEthAddress(r.address);
