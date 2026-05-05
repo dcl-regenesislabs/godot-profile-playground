@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Godot Profile Viewer</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    :root { color-scheme: dark; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0e1116;
+      color: #e6edf3;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    .card {
+      width: min(720px, 92vw);
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      padding: 28px 32px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+    h1 { margin: 0 0 4px 0; font-size: 22px; }
+    p.sub { margin: 0 0 20px 0; color: #8b949e; font-size: 14px; }
+    form { display: flex; gap: 8px; }
+    input[name="address"] {
+      flex: 1;
+      padding: 10px 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 14px;
+      background: #0d1117;
+      color: #e6edf3;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+    }
+    button {
+      padding: 10px 18px;
+      background: #238636;
+      color: white;
+      border: 1px solid rgba(240,246,252,0.1);
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button:disabled { opacity: 0.6; cursor: progress; }
+    #status { margin-top: 16px; min-height: 20px; font-size: 14px; color: #8b949e; }
+    #status.error { color: #f85149; }
+    .results { margin-top: 20px; display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+    .results figure { margin: 0; background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 12px; text-align: center; }
+    .results img { max-width: 100%; height: auto; image-rendering: pixelated; }
+    .results figcaption { margin-top: 8px; font-size: 12px; color: #8b949e; }
+    .name { font-weight: 600; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>Godot Profile Viewer</h1>
+    <p class="sub">Renders a Decentraland avatar from an Ethereum address using godot-explorer.</p>
+
+    <form id="form" autocomplete="off">
+      <input name="address" placeholder="0x..." spellcheck="false" required />
+      <button type="submit">Render</button>
+    </form>
+
+    <div id="status"></div>
+
+    <div class="results" id="results" hidden>
+      <figure>
+        <img id="bodyImg" alt="body" />
+        <figcaption>body</figcaption>
+      </figure>
+      <figure>
+        <img id="faceImg" alt="face" />
+        <figcaption>face</figcaption>
+      </figure>
+    </div>
+  </main>
+
+  <script type="module">
+    const form = document.getElementById("form");
+    const status = document.getElementById("status");
+    const results = document.getElementById("results");
+    const bodyImg = document.getElementById("bodyImg");
+    const faceImg = document.getElementById("faceImg");
+    const button = form.querySelector("button");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const address = new FormData(form).get("address").toString().trim();
+      status.classList.remove("error");
+      status.textContent = "Rendering… first request may take 30–60s while the docker image is pulled.";
+      results.hidden = true;
+      button.disabled = true;
+
+      const started = performance.now();
+      try {
+        const res = await fetch("/api/render", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ address }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+
+        bodyImg.src = data.body;
+        faceImg.src = data.face ?? data.body;
+        results.hidden = false;
+        const took = ((performance.now() - started) / 1000).toFixed(1);
+        const namePart = data.name ? `${data.name} ` : "";
+        status.textContent = `${namePart}(${data.address}) — rendered in ${took}s`;
+      } catch (err) {
+        status.classList.add("error");
+        status.textContent = `Error: ${err.message}`;
+      } finally {
+        button.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
