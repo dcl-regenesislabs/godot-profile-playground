@@ -7,7 +7,7 @@ services:
     image: godot-profile-viewer:dev
     container_name: godot-profile-viewer
     ports:
-      - "${HOST_PORT:-3001}:3000"
+      - "${HOST_BIND:-127.0.0.1}:${HOST_PORT:-3001}:3000"
     environment:
       CATALYST_URL: ${CATALYST_URL:-https://peer.decentraland.org}
       RENDER_TIMEOUT_MS: ${RENDER_TIMEOUT_MS:-120000}
