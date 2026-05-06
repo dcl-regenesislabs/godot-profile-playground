@@ -10,6 +10,7 @@ import {
 import { RenderQueue } from "./src/queue.js";
 import { ResultsStore } from "./src/store.js";
 import { Presence } from "./src/presence.js";
+import { avatarSignature } from "./src/signature.js";
 
 const PORT = Number(process.env.PORT ?? 3000);
 const GODOT_BIN = process.env.GODOT_BIN ?? "/app/decentraland.godot.client.x86_64";
@@ -65,6 +66,7 @@ async function processJob(job) {
     bodyBuffer: result.bodyBuffer,
     faceBuffer: result.faceBuffer,
     preview: extractPreviewParams(profile.avatar),
+    signature: avatarSignature(profile.avatar),
   });
 }
 
@@ -136,6 +138,18 @@ app.get("/api/queue", (_req, res) => {
 
 app.get("/api/results", async (_req, res) => {
   res.json(await store.list());
+});
+
+app.get("/api/profile-signature/:address", async (req, res, next) => {
+  try {
+    const profile = await fetchProfileByAddress(req.params.address, CATALYST_URL);
+    res.json({
+      address: profile.ethAddress,
+      signature: avatarSignature(profile.avatar),
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
 app.use(

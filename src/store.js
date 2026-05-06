@@ -29,7 +29,7 @@ export class ResultsStore {
     return this.results;
   }
 
-  async save({ address, name, bodyBuffer, faceBuffer, preview }) {
+  async save({ address, name, bodyBuffer, faceBuffer, preview, signature }) {
     await this.ready;
     const at = new Date().toISOString();
     const bodyName = `${address}.png`;
@@ -38,7 +38,15 @@ export class ResultsStore {
     await writeFile(join(this.imagesDir, bodyName), bodyBuffer);
     if (faceBuffer) await writeFile(join(this.imagesDir, faceName), faceBuffer);
 
-    const entry = { address, name, body: bodyName, face: faceName, at, preview: preview ?? null };
+    const entry = {
+      address,
+      name,
+      body: bodyName,
+      face: faceName,
+      at,
+      preview: preview ?? null,
+      signature: signature ?? null,
+    };
     const filtered = this.results.filter((r) => r.address !== address);
     this.results = [entry, ...filtered].slice(0, MAX_RESULTS);
     await this.#flush();

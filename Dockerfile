@@ -1,4 +1,4 @@
-ARG GODOT_IMAGE=quay.io/decentraland/godot-explorer:next
+ARG GODOT_IMAGE=quay.io/decentraland/godot-explorer:8ed31d84089cba0d4c37243ed48160ad6cd6f6ff
 
 FROM ${GODOT_IMAGE}
 ARG GODOT_IMAGE

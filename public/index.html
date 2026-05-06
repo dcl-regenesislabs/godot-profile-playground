@@ -362,6 +362,57 @@
     }
 
     /* Compare panel (latest render side-by-side with Unity preview) */
+    #compare-panel { position: relative; }
+    .compare-warning {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px 6px 12px;
+      background: rgba(248, 81, 73, 0.12);
+      border: 1px solid #f8514988;
+      border-radius: 999px;
+      font-size: 12px;
+      color: #ff7b72;
+      z-index: 3;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    }
+    .compare-warning .warning-icon { font-size: 13px; line-height: 1; }
+    .compare-warning .warning-text {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+    }
+    .compare-warning .warning-rebuild {
+      width: 24px;
+      height: 24px;
+      padding: 0;
+      border-radius: 50%;
+      background: rgba(248, 81, 73, 0.18);
+      border: 1px solid #f8514988;
+      color: #ff7b72;
+      font-size: 13px;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-weight: 600;
+      transition: color 0.15s, border-color 0.15s, background 0.15s;
+    }
+    .compare-warning .warning-rebuild:hover {
+      color: #fff;
+      background: #f85149;
+      border-color: #f85149;
+    }
+    .compare-warning .warning-rebuild:disabled { cursor: progress; opacity: 0.7; }
+    .compare-warning .warning-rebuild.spinning .rebuild-icon { animation: spin 0.9s linear infinite; }
+    .compare-warning .warning-rebuild .rebuild-icon { display: inline-block; transform-origin: center; }
+    @media (max-width: 520px) {
+      .compare-warning .warning-text { display: none; }
+    }
     .compare-head {
       display: flex;
       align-items: baseline;
@@ -493,6 +544,12 @@
       white-space: nowrap;
     }
     .card .meta.time { font-family: -apple-system, sans-serif; }
+    .card .meta.copyable {
+      cursor: pointer;
+      transition: color 0.15s ease;
+    }
+    .card .meta.copyable:hover { color: #79c0ff; }
+    .card .meta.copyable.copied { color: #3fb950; }
     .empty { color: #8b949e; font-size: 13px; padding: 12px 0; grid-column: 1 / -1; text-align: center; }
   </style>
 </head>
@@ -536,6 +593,13 @@ bafkreia24gv4ucsdyihp7imfnfc524mr4py3re6dkg62gm7cnb4qgy4v3e" spellcheck="false">
     </section>
 
     <section class="panel" id="compare-panel">
+      <div id="compare-warning" class="compare-warning" hidden role="status" aria-live="polite">
+        <span class="warning-icon" aria-hidden="true">⚠</span>
+        <span class="warning-text">Profile updated since last render</span>
+        <button id="compare-rebuild" class="warning-rebuild" type="button" title="Re-render this profile" aria-label="Re-render this profile">
+          <span class="rebuild-icon" aria-hidden="true">↻</span>
+        </button>
+      </div>
       <div class="compare-head">
         <h2>Comparison</h2>
         <span id="compare-name" class="compare-name"></span>
@@ -788,8 +852,82 @@ bafkreia24gv4ucsdyihp7imfnfc524mr4py3re6dkg62gm7cnb4qgy4v3e" spellcheck="false">
     const compareSubEl = document.getElementById("compare-sub");
     const compareIframe = document.getElementById("compare-iframe");
     const compareBody = document.getElementById("compare-body");
+    const compareWarning = document.getElementById("compare-warning");
+    const compareRebuildBtn = document.getElementById("compare-rebuild");
 
     let lastCompareKey = "";
+
+    const SIG_TTL_MS = 15_000;
+    const sigCache = new Map();
+    let warningTarget = null;
+
+    function hideCompareWarning() {
+      compareWarning.hidden = true;
+      warningTarget = null;
+    }
+
+    function showCompareWarning(address) {
+      warningTarget = address;
+      compareWarning.hidden = false;
+    }
+
+    async function fetchCurrentSignature(address) {
+      const cached = sigCache.get(address);
+      if (cached && Date.now() - cached.ts < SIG_TTL_MS) return cached.signature;
+      try {
+        const res = await api(`/api/profile-signature/${address}`);
+        if (!res.ok) return null;
+        const data = await res.json();
+        const signature = typeof data?.signature === "string" ? data.signature : null;
+        sigCache.set(address, { signature, ts: Date.now() });
+        return signature;
+      } catch {
+        return null;
+      }
+    }
+
+    async function updateOutdatedWarning(r) {
+      if (!r || !isEthAddress(r.address) || !r.signature) {
+        hideCompareWarning();
+        return;
+      }
+      const address = r.address;
+      const stored = r.signature;
+      const current = await fetchCurrentSignature(address);
+      const stillShowing = !compareContent.hidden && lastCompareKey.startsWith(`${address}|`);
+      if (!stillShowing) return;
+      if (current && current !== stored) {
+        showCompareWarning(address);
+      } else {
+        hideCompareWarning();
+      }
+    }
+
+    compareRebuildBtn.addEventListener("click", async () => {
+      const address = warningTarget;
+      if (!address || compareRebuildBtn.disabled) return;
+      compareRebuildBtn.disabled = true;
+      compareRebuildBtn.classList.add("spinning");
+      try {
+        const res = await api("/api/jobs", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ items: [address] }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+        sigCache.delete(address);
+        refresh();
+      } catch (err) {
+        compareRebuildBtn.title = `Failed: ${err.message}`;
+      } finally {
+        setTimeout(() => {
+          compareRebuildBtn.classList.remove("spinning");
+          compareRebuildBtn.disabled = false;
+          compareRebuildBtn.title = "Re-render this profile";
+        }, 1200);
+      }
+    });
 
     function renderCompare(results) {
       if (!results || results.length === 0) {
@@ -802,6 +940,7 @@ bafkreia24gv4ucsdyihp7imfnfc524mr4py3re6dkg62gm7cnb4qgy4v3e" spellcheck="false">
         compareNameEl.textContent = "";
         compareSubEl.textContent = "";
         lastCompareKey = "";
+        hideCompareWarning();
         return;
       }
       let r = null;
@@ -813,9 +952,12 @@ bafkreia24gv4ucsdyihp7imfnfc524mr4py3re6dkg62gm7cnb4qgy4v3e" spellcheck="false">
       const key = `${r.address}|${r.at}|${r.body}`;
       if (key === lastCompareKey) {
         compareSubEl.textContent = `${shorten(r.address, 8)} · ${formatRelative(r.at)}`;
+        updateOutdatedWarning(r);
         return;
       }
       lastCompareKey = key;
+      sigCache.delete(r.address);
+      hideCompareWarning();
 
       compareEmpty.hidden = true;
       compareContent.hidden = false;
@@ -838,6 +980,8 @@ bafkreia24gv4ucsdyihp7imfnfc524mr4py3re6dkg62gm7cnb4qgy4v3e" spellcheck="false">
       } else {
         compareIframe.src = "about:blank";
       }
+
+      updateOutdatedWarning(r);
     }
 
     compareBody.addEventListener("click", () => {
@@ -890,7 +1034,7 @@ bafkreia24gv4ucsdyihp7imfnfc524mr4py3re6dkg62gm7cnb4qgy4v3e" spellcheck="false">
           </div>
           <div class="info">
             <div class="${nameClass}" title="${nameText}">${nameText}</div>
-            <div class="meta" title="${r.address}">${shorten(r.address, 8)}</div>
+            <div class="meta copyable" data-copy="${r.address}" title="Click to copy ${r.address}" role="button" tabindex="0">${shorten(r.address, 8)}</div>
             <div class="meta time" data-at="${r.at}">${formatRelative(r.at)}</div>
             ${profileLink}
           </div>
@@ -943,12 +1087,42 @@ bafkreia24gv4ucsdyihp7imfnfc524mr4py3re6dkg62gm7cnb4qgy4v3e" spellcheck="false">
       }
     }
 
+    async function copyToClipboard(el) {
+      const text = el.getAttribute("data-copy");
+      if (!text) return;
+      try {
+        await navigator.clipboard.writeText(text);
+        el.classList.add("copied");
+        const original = el.textContent;
+        el.textContent = "copied!";
+        setTimeout(() => {
+          el.classList.remove("copied");
+          el.textContent = original;
+        }, 900);
+      } catch {
+        el.classList.add("copied");
+        const original = el.textContent;
+        el.textContent = "copy failed";
+        setTimeout(() => {
+          el.classList.remove("copied");
+          el.textContent = original;
+        }, 900);
+      }
+    }
+
     gallery.addEventListener("click", (e) => {
       const rebuildTarget = e.target.closest("[data-rebuild-address]");
       if (rebuildTarget) {
         e.preventDefault();
         e.stopPropagation();
         rebuildAddress(rebuildTarget);
+        return;
+      }
+      const copyTarget = e.target.closest("[data-copy]");
+      if (copyTarget) {
+        e.preventDefault();
+        e.stopPropagation();
+        copyToClipboard(copyTarget);
         return;
       }
       const compareTarget = e.target.closest("[data-compare-address]");
