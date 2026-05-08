@@ -33,7 +33,8 @@ Open <http://localhost:3000>.
 | ------------------- | -------------------------------------------------- | -------------------------------------- |
 | `PORT`              | `3000`                                             | HTTP port                              |
 | `DOCKER_IMAGE`      | `quay.io/decentraland/godot-explorer:latest`       | Override to use a locally-built tag    |
-| `CATALYST_URL`      | `https://peer.decentraland.org`                    | Decentraland catalyst base URL         |
+| `CATALYST_URL_ORG`  | `https://peer.decentraland.org`                    | Catalyst base URL for `.org` jobs      |
+| `CATALYST_URL_ZONE` | `https://peer.decentraland.zone`                   | Catalyst base URL for `.zone` jobs     |
 | `RENDER_TIMEOUT_MS` | `120000`                                           | Kills the container if it hangs        |
 
 ## API

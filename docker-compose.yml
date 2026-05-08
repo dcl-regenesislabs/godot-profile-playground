@@ -9,7 +9,8 @@ services:
     ports:
       - "${HOST_BIND:-127.0.0.1}:${HOST_PORT:-3001}:3000"
     environment:
-      CATALYST_URL: ${CATALYST_URL:-https://peer.decentraland.org}
+      CATALYST_URL_ORG: ${CATALYST_URL_ORG:-https://peer.decentraland.org}
+      CATALYST_URL_ZONE: ${CATALYST_URL_ZONE:-https://peer.decentraland.zone}
       RENDER_TIMEOUT_MS: ${RENDER_TIMEOUT_MS:-120000}
       DATA_DIR: /data
     volumes:

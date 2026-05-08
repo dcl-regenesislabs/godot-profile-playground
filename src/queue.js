@@ -39,12 +39,13 @@ export class RenderQueue {
     return this.pending.length + (this.processing ? 1 : 0);
   }
 
-  enqueue({ kind, input, key }) {
+  enqueue({ kind, input, key, network }) {
     if (this.keys.has(key)) return null;
     const job = {
       id: randomUUID(),
       kind,
       input,
+      network,
       key,
       queuedAt: new Date().toISOString(),
     };
@@ -65,11 +66,12 @@ export class RenderQueue {
           await this.worker(job);
         } catch (err) {
           const message = err?.message ?? String(err);
-          console.error(`[queue] job ${job.id} (${job.kind}=${job.input}) failed:`, message);
+          console.error(`[queue] job ${job.id} (${job.kind}=${job.input}, network=${job.network}) failed:`, message);
           this.recentFailures.unshift({
             id: job.id,
             kind: job.kind,
             input: job.input,
+            network: job.network,
             error: message,
             failedAt: new Date().toISOString(),
           });

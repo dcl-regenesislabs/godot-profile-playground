@@ -15,12 +15,25 @@ import { avatarSignature } from "./src/signature.js";
 const PORT = Number(process.env.PORT ?? 3000);
 const GODOT_BIN = process.env.GODOT_BIN ?? "/app/decentraland.godot.client.x86_64";
 const GODOT_WORKDIR = process.env.GODOT_WORKDIR ?? "/app";
-const CATALYST_URL = process.env.CATALYST_URL ?? "https://peer.decentraland.org";
+const CATALYST_URL_ORG = process.env.CATALYST_URL_ORG ?? "https://peer.decentraland.org";
+const CATALYST_URL_ZONE = process.env.CATALYST_URL_ZONE ?? "https://peer.decentraland.zone";
 const RENDER_TIMEOUT_MS = Number(process.env.RENDER_TIMEOUT_MS ?? 120_000);
 const DATA_DIR = process.env.DATA_DIR ?? "/data";
 const MAX_BATCH = 10;
 const MAX_QUEUE = Number(process.env.MAX_QUEUE ?? 20);
 const PRESENCE_TTL_MS = Number(process.env.PRESENCE_TTL_MS ?? 5000);
+
+const SUPPORTED_NETWORKS = new Set(["org", "zone"]);
+
+function normalizeNetwork(value) {
+  if (typeof value !== "string") return "org";
+  const v = value.trim().toLowerCase();
+  return SUPPORTED_NETWORKS.has(v) ? v : "org";
+}
+
+function catalystForNetwork(network) {
+  return network === "zone" ? CATALYST_URL_ZONE : CATALYST_URL_ORG;
+}
 
 const store = new ResultsStore({ dir: DATA_DIR });
 
@@ -44,9 +57,11 @@ function extractPreviewParams(avatar) {
 }
 
 async function processJob(job) {
+  const network = normalizeNetwork(job.network);
+  const catalystUrl = catalystForNetwork(network);
   const profile = job.kind === "address"
-    ? await fetchProfileByAddress(job.input, CATALYST_URL)
-    : await fetchProfileByDeployment(job.input, CATALYST_URL);
+    ? await fetchProfileByAddress(job.input, catalystUrl)
+    : await fetchProfileByDeployment(job.input, catalystUrl);
 
   if (!profile.ethAddress) {
     throw new HttpError(500, "profile has no ethAddress");
@@ -54,7 +69,7 @@ async function processJob(job) {
 
   const result = await renderProfile({
     profile,
-    catalystUrl: CATALYST_URL,
+    catalystUrl,
     godotBin: GODOT_BIN,
     godotWorkdir: GODOT_WORKDIR,
     timeoutMs: RENDER_TIMEOUT_MS,
@@ -63,6 +78,7 @@ async function processJob(job) {
   await store.save({
     address: result.address,
     name: result.name,
+    network,
     bodyBuffer: result.bodyBuffer,
     faceBuffer: result.faceBuffer,
     preview: extractPreviewParams(profile.avatar),
@@ -90,7 +106,8 @@ app.get("/healthz", (_req, res) => {
 app.get("/api/info", (_req, res) => {
   res.json({
     godotImage: process.env.GODOT_IMAGE_REF ?? null,
-    catalystUrl: CATALYST_URL,
+    catalystUrls: { org: CATALYST_URL_ORG, zone: CATALYST_URL_ZONE },
+    networks: ["org", "zone"],
     maxQueue: MAX_QUEUE,
     maxBatch: MAX_BATCH,
   });
@@ -104,6 +121,7 @@ app.post("/api/jobs", (req, res) => {
   if (items.length > MAX_BATCH) {
     return res.status(400).json({ error: `max ${MAX_BATCH} items per request` });
   }
+  const network = normalizeNetwork(req.body?.network);
 
   const accepted = [];
   const rejected = [];
@@ -117,9 +135,14 @@ app.post("/api/jobs", (req, res) => {
       rejected.push({ input: raw, reason: `queue full (max ${MAX_QUEUE})` });
       continue;
     }
-    const job = queue.enqueue({ kind: c.kind, input: c.value, key: c.key });
+    const job = queue.enqueue({
+      kind: c.kind,
+      input: c.value,
+      key: `${network}|${c.key}`,
+      network,
+    });
     if (job) {
-      accepted.push({ id: job.id, kind: job.kind, input: job.input });
+      accepted.push({ id: job.id, kind: job.kind, input: job.input, network: job.network });
     } else {
       rejected.push({ input: raw, reason: "already in queue" });
     }
@@ -142,9 +165,12 @@ app.get("/api/results", async (_req, res) => {
 
 app.get("/api/profile-signature/:address", async (req, res, next) => {
   try {
-    const profile = await fetchProfileByAddress(req.params.address, CATALYST_URL);
+    const network = normalizeNetwork(req.query?.network);
+    const catalystUrl = catalystForNetwork(network);
+    const profile = await fetchProfileByAddress(req.params.address, catalystUrl);
     res.json({
       address: profile.ethAddress,
+      network,
       signature: avatarSignature(profile.avatar),
     });
   } catch (err) {
@@ -167,7 +193,8 @@ app.listen(PORT, () => {
   console.log(`godot-profile-viewer listening on http://localhost:${PORT}`);
   console.log(`  godot binary:  ${GODOT_BIN}`);
   console.log(`  godot workdir: ${GODOT_WORKDIR}`);
-  console.log(`  catalyst url:  ${CATALYST_URL}`);
+  console.log(`  catalyst org:  ${CATALYST_URL_ORG}`);
+  console.log(`  catalyst zone: ${CATALYST_URL_ZONE}`);
   console.log(`  data dir:      ${DATA_DIR}`);
   console.log(`  render timeout: ${RENDER_TIMEOUT_MS}ms`);
 });

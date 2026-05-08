@@ -209,7 +209,53 @@
       border-radius: 6px;
       resize: vertical;
     }
-    .form-actions { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+    .form-actions { display: flex; align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
+    .network-toggle {
+      display: inline-flex;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 999px;
+      padding: 2px;
+      gap: 0;
+    }
+    .network-option {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 14px;
+      font-size: 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-weight: 600;
+      color: #8b949e;
+      cursor: pointer;
+      border-radius: 999px;
+      user-select: none;
+      transition: color 0.15s, background 0.15s;
+    }
+    .network-option input { position: absolute; opacity: 0; pointer-events: none; }
+    .network-option:hover { color: #c9d1d9; }
+    .network-option:has(input:checked) {
+      background: #1f6feb22;
+      color: #79c0ff;
+      box-shadow: inset 0 0 0 1px #388bfd44;
+    }
+    .net-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 9px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      border: 1px solid #30363d;
+      background: #161b22;
+      color: #8b949e;
+    }
+    .net-badge.zone { color: #d2a8ff; border-color: #8957e544; background: #8957e51a; }
+    .net-badge.org { color: #79c0ff; border-color: #388bfd44; background: #1f6feb1a; }
     button {
       padding: 8px 16px;
       background: #238636;
@@ -332,6 +378,8 @@
       min-width: 0;
     }
     .card .meta-row .meta { flex: 1; min-width: 0; }
+    .card .meta-row .name { flex: 1; min-width: 0; }
+    .card .meta-row .net-badge { flex-shrink: 0; }
     .card .profile-link {
       display: flex;
       align-items: center;
@@ -587,6 +635,16 @@
 bafkreia24gv4ucsdyihp7imfnfc524mr4py3re6dkg62gm7cnb4qgy4v3e" spellcheck="false"></textarea>
       <div class="form-actions">
         <button id="submit-btn">Enqueue</button>
+        <div class="network-toggle" role="radiogroup" aria-label="Catalyst network">
+          <label class="network-option">
+            <input type="radio" name="network" value="org" checked />
+            <span>.org</span>
+          </label>
+          <label class="network-option">
+            <input type="radio" name="network" value="zone" />
+            <span>.zone</span>
+          </label>
+        </div>
         <span class="hint">Up to 10 per submission. Duplicates already in the queue are skipped.</span>
       </div>
       <div id="submit-status"></div>
@@ -711,6 +769,11 @@ bafkreia24gv4ucsdyihp7imfnfc524mr4py3re6dkg62gm7cnb4qgy4v3e" spellcheck="false">
       return `<span class="tag">${kind === "address" ? "addr" : "dep"}</span>`;
     }
 
+    function networkTag(network) {
+      const n = network === "zone" ? "zone" : "org";
+      return `<span class="net-badge ${n}" title="decentraland.${n}">.${n}</span>`;
+    }
+
     function renderQueue(state) {
       const pending = state.pending ?? [];
       const processing = state.processing ?? null;
@@ -730,7 +793,7 @@ bafkreia24gv4ucsdyihp7imfnfc524mr4py3re6dkg62gm7cnb4qgy4v3e" spellcheck="false">
       if (processing) {
         const el = document.createElement("span");
         el.className = "pill processing";
-        el.innerHTML = `<span class="dot"></span>${kindTag(processing.kind)}<span title="${processing.input}">${shorten(processing.input)}</span>`;
+        el.innerHTML = `<span class="dot"></span>${kindTag(processing.kind)}${networkTag(processing.network)}<span title="${processing.input}">${shorten(processing.input)}</span>`;
         queueProcessing.appendChild(el);
       }
 
@@ -738,7 +801,7 @@ bafkreia24gv4ucsdyihp7imfnfc524mr4py3re6dkg62gm7cnb4qgy4v3e" spellcheck="false">
       for (const job of pending) {
         const el = document.createElement("span");
         el.className = "pill";
-        el.innerHTML = `${kindTag(job.kind)}<span title="${job.input}">${shorten(job.input)}</span>`;
+        el.innerHTML = `${kindTag(job.kind)}${networkTag(job.network)}<span title="${job.input}">${shorten(job.input)}</span>`;
         queuePending.appendChild(el);
       }
 
@@ -749,7 +812,7 @@ bafkreia24gv4ucsdyihp7imfnfc524mr4py3re6dkg62gm7cnb4qgy4v3e" spellcheck="false">
         const el = document.createElement("span");
         el.className = "pill failed";
         el.title = "Click to see details";
-        el.innerHTML = `${kindTag(f.kind)}<span>${shorten(f.input)}</span>`;
+        el.innerHTML = `${kindTag(f.kind)}${networkTag(f.network)}<span>${shorten(f.input)}</span>`;
         el.addEventListener("click", () => openFailureModal(f));
         queueFailures.appendChild(el);
       }
@@ -764,7 +827,8 @@ bafkreia24gv4ucsdyihp7imfnfc524mr4py3re6dkg62gm7cnb4qgy4v3e" spellcheck="false">
     const failureCloseBtn = document.getElementById("failure-modal-close");
 
     function openFailureModal(f) {
-      failureInputEl.textContent = `${f.kind}: ${f.input}`;
+      const net = f.network === "zone" ? "zone" : "org";
+      failureInputEl.textContent = `${f.kind}: ${f.input} (.${net})`;
       failureWhenEl.textContent = `failed at ${new Date(f.failedAt).toLocaleString()}`;
       failureOutputEl.textContent = f.error ?? "(no error message)";
       failureModal.classList.add("open");
@@ -799,6 +863,10 @@ bafkreia24gv4ucsdyihp7imfnfc524mr4py3re6dkg62gm7cnb4qgy4v3e" spellcheck="false">
     const COMPARE_BG_HEX = getComputedStyle(document.documentElement)
       .getPropertyValue("--compare-bg-hex").trim() || "1a1f29";
 
+    function networkOf(r) {
+      return r?.network === "zone" ? "zone" : "org";
+    }
+
     function unityPreviewUrl(r) {
       const params = new URLSearchParams({
         profile: r.address,
@@ -819,22 +887,32 @@ bafkreia24gv4ucsdyihp7imfnfc524mr4py3re6dkg62gm7cnb4qgy4v3e" spellcheck="false">
         if (p.hairColor) params.set("hairColor", p.hairColor);
         if (p.skinColor) params.set("skinColor", p.skinColor);
       }
-      return `https://wearable-preview.decentraland.org/?${params.toString()}`;
+      const tld = networkOf(r);
+      return `https://wearable-preview.decentraland.${tld}/?${params.toString()}`;
+    }
+
+    function profileLinkUrl(r) {
+      const tld = networkOf(r);
+      return `https://decentraland.${tld}/profile/accounts/${r.address}`;
     }
 
     let lastGalleryKey = "";
-    let selectedAddress = null;
+    let selectedKey = null;
     let lastResults = [];
 
+    function resultKey(r) {
+      return `${networkOf(r)}|${r.address}`;
+    }
+
     function galleryKey(results) {
-      const sel = selectedAddress ?? "";
+      const sel = selectedKey ?? "";
       if (!results || results.length === 0) return `EMPTY|${sel}`;
       return (
         results
           .map((r) => {
             const p = r.preview ?? {};
             const previewKey = `${p.bodyShape ?? ""}|${p.eyeColor ?? ""}|${p.hairColor ?? ""}|${p.skinColor ?? ""}`;
-            return `${r.address}|${r.at}|${r.body}|${r.face ?? ""}|${r.name ?? ""}|${previewKey}`;
+            return `${networkOf(r)}|${r.address}|${r.at}|${r.body}|${r.face ?? ""}|${r.name ?? ""}|${previewKey}`;
           })
           .join("\n") + `|sel=${sel}`
       );
@@ -861,25 +939,30 @@ bafkreia24gv4ucsdyihp7imfnfc524mr4py3re6dkg62gm7cnb4qgy4v3e" spellcheck="false">
     const sigCache = new Map();
     let warningTarget = null;
 
+    function sigCacheKey(network, address) {
+      return `${network}|${address}`;
+    }
+
     function hideCompareWarning() {
       compareWarning.hidden = true;
       warningTarget = null;
     }
 
-    function showCompareWarning(address) {
-      warningTarget = address;
+    function showCompareWarning(target) {
+      warningTarget = target;
       compareWarning.hidden = false;
     }
 
-    async function fetchCurrentSignature(address) {
-      const cached = sigCache.get(address);
+    async function fetchCurrentSignature(network, address) {
+      const cacheKey = sigCacheKey(network, address);
+      const cached = sigCache.get(cacheKey);
       if (cached && Date.now() - cached.ts < SIG_TTL_MS) return cached.signature;
       try {
-        const res = await api(`/api/profile-signature/${address}`);
+        const res = await api(`/api/profile-signature/${address}?network=${network}`);
         if (!res.ok) return null;
         const data = await res.json();
         const signature = typeof data?.signature === "string" ? data.signature : null;
-        sigCache.set(address, { signature, ts: Date.now() });
+        sigCache.set(cacheKey, { signature, ts: Date.now() });
         return signature;
       } catch {
         return null;
@@ -891,32 +974,33 @@ bafkreia24gv4ucsdyihp7imfnfc524mr4py3re6dkg62gm7cnb4qgy4v3e" spellcheck="false">
         hideCompareWarning();
         return;
       }
+      const network = networkOf(r);
       const address = r.address;
       const stored = r.signature;
-      const current = await fetchCurrentSignature(address);
-      const stillShowing = !compareContent.hidden && lastCompareKey.startsWith(`${address}|`);
+      const current = await fetchCurrentSignature(network, address);
+      const stillShowing = !compareContent.hidden && lastCompareKey.startsWith(`${network}|${address}|`);
       if (!stillShowing) return;
       if (current && current !== stored) {
-        showCompareWarning(address);
+        showCompareWarning({ network, address });
       } else {
         hideCompareWarning();
       }
     }
 
     compareRebuildBtn.addEventListener("click", async () => {
-      const address = warningTarget;
-      if (!address || compareRebuildBtn.disabled) return;
+      const target = warningTarget;
+      if (!target || compareRebuildBtn.disabled) return;
       compareRebuildBtn.disabled = true;
       compareRebuildBtn.classList.add("spinning");
       try {
         const res = await api("/api/jobs", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ items: [address] }),
+          body: JSON.stringify({ items: [target.address], network: target.network }),
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
-        sigCache.delete(address);
+        sigCache.delete(sigCacheKey(target.network, target.address));
         refresh();
       } catch (err) {
         compareRebuildBtn.title = `Failed: ${err.message}`;
@@ -944,19 +1028,20 @@ bafkreia24gv4ucsdyihp7imfnfc524mr4py3re6dkg62gm7cnb4qgy4v3e" spellcheck="false">
         return;
       }
       let r = null;
-      if (selectedAddress) {
-        r = results.find((x) => x.address === selectedAddress) ?? null;
-        if (!r) selectedAddress = null;
+      if (selectedKey) {
+        r = results.find((x) => resultKey(x) === selectedKey) ?? null;
+        if (!r) selectedKey = null;
       }
       if (!r) r = results[0];
-      const key = `${r.address}|${r.at}|${r.body}`;
+      const network = networkOf(r);
+      const key = `${network}|${r.address}|${r.at}|${r.body}`;
       if (key === lastCompareKey) {
-        compareSubEl.textContent = `${shorten(r.address, 8)} · ${formatRelative(r.at)}`;
+        compareSubEl.textContent = `${shorten(r.address, 8)} · .${network} · ${formatRelative(r.at)}`;
         updateOutdatedWarning(r);
         return;
       }
       lastCompareKey = key;
-      sigCache.delete(r.address);
+      sigCache.delete(sigCacheKey(network, r.address));
       hideCompareWarning();
 
       compareEmpty.hidden = true;
@@ -969,7 +1054,7 @@ bafkreia24gv4ucsdyihp7imfnfc524mr4py3re6dkg62gm7cnb4qgy4v3e" spellcheck="false">
         compareNameEl.textContent = "(unnamed)";
         compareNameEl.classList.add("unnamed");
       }
-      compareSubEl.textContent = `${shorten(r.address, 8)} · ${formatRelative(r.at)}`;
+      compareSubEl.textContent = `${shorten(r.address, 8)} · .${network} · ${formatRelative(r.at)}`;
 
       const cb = encodeURIComponent(r.at);
       compareBody.src = url(`/api/results/images/${r.body}?t=${cb}`);
@@ -989,9 +1074,9 @@ bafkreia24gv4ucsdyihp7imfnfc524mr4py3re6dkg62gm7cnb4qgy4v3e" spellcheck="false">
       if (src) openModal(src);
     });
 
-    function selectComparison(address) {
-      if (!address || selectedAddress === address) return;
-      selectedAddress = address;
+    function selectComparison(key) {
+      if (!key || selectedKey === key) return;
+      selectedKey = key;
       renderCompare(lastResults);
       renderGallery(lastResults);
     }
@@ -1011,9 +1096,12 @@ bafkreia24gv4ucsdyihp7imfnfc524mr4py3re6dkg62gm7cnb4qgy4v3e" spellcheck="false">
       gallery.innerHTML = "";
       for (const r of results) {
         const card = document.createElement("div");
-        const isSelected = r.address === selectedAddress;
+        const network = networkOf(r);
+        const rKey = resultKey(r);
+        const isSelected = rKey === selectedKey;
         card.className = isSelected ? "card selected" : "card";
         card.dataset.address = r.address;
+        card.dataset.network = network;
         const cb = encodeURIComponent(r.at);
         const bodyUrl = url(`/api/results/images/${r.body}?t=${cb}`);
         const faceUrl = r.face ? url(`/api/results/images/${r.face}?t=${cb}`) : null;
@@ -1021,19 +1109,22 @@ bafkreia24gv4ucsdyihp7imfnfc524mr4py3re6dkg62gm7cnb4qgy4v3e" spellcheck="false">
         const nameText = r.name ?? "(unnamed)";
         const isEth = isEthAddress(r.address);
         const profileLink = isEth
-          ? `<a class="profile-link" href="https://decentraland.org/profile/accounts/${r.address}" target="_blank" rel="noopener noreferrer" title="Open profile on decentraland.org" aria-label="Open profile on decentraland.org"><span>Open Decentraland profile</span><span class="arrow">↗</span></a>`
+          ? `<a class="profile-link" href="${profileLinkUrl(r)}" target="_blank" rel="noopener noreferrer" title="Open profile on decentraland.${network}" aria-label="Open profile on decentraland.${network}"><span>Open Decentraland profile</span><span class="arrow">↗</span></a>`
           : "";
         const rebuildBtn = isEth
-          ? `<button type="button" class="rebuild-btn" data-rebuild-address="${r.address}" title="Re-render this profile" aria-label="Re-render this profile"><span class="rebuild-icon">↻</span></button>`
+          ? `<button type="button" class="rebuild-btn" data-rebuild-address="${r.address}" data-rebuild-network="${network}" title="Re-render this profile (.${network})" aria-label="Re-render this profile"><span class="rebuild-icon">↻</span></button>`
           : "";
         card.innerHTML = `
           <div class="body-wrap">
-            <img class="body-img" src="${bodyUrl}" alt="body" loading="lazy" data-compare-address="${r.address}" title="Click to compare this avatar" />
+            <img class="body-img" src="${bodyUrl}" alt="body" loading="lazy" data-compare-key="${rKey}" title="Click to compare this avatar" />
             ${rebuildBtn}
             ${faceUrl ? `<img class="face-img" src="${faceUrl}" alt="face" loading="lazy" data-zoom="${faceUrl}" />` : ""}
           </div>
           <div class="info">
-            <div class="${nameClass}" title="${nameText}">${nameText}</div>
+            <div class="meta-row">
+              <div class="${nameClass}" title="${nameText}">${nameText}</div>
+              <span class="net-badge ${network}" title="Catalyst: decentraland.${network}">.${network}</span>
+            </div>
             <div class="meta copyable" data-copy="${r.address}" title="Click to copy ${r.address}" role="button" tabindex="0">${shorten(r.address, 8)}</div>
             <div class="meta time" data-at="${r.at}">${formatRelative(r.at)}</div>
             ${profileLink}
@@ -1058,6 +1149,7 @@ bafkreia24gv4ucsdyihp7imfnfc524mr4py3re6dkg62gm7cnb4qgy4v3e" spellcheck="false">
 
     async function rebuildAddress(btn) {
       const address = btn.getAttribute("data-rebuild-address");
+      const network = btn.getAttribute("data-rebuild-network") === "zone" ? "zone" : "org";
       if (!address || btn.disabled) return;
       const originalTitle = btn.title;
       btn.disabled = true;
@@ -1066,7 +1158,7 @@ bafkreia24gv4ucsdyihp7imfnfc524mr4py3re6dkg62gm7cnb4qgy4v3e" spellcheck="false">
         const res = await api("/api/jobs", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ items: [address] }),
+          body: JSON.stringify({ items: [address], network }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
@@ -1125,10 +1217,10 @@ bafkreia24gv4ucsdyihp7imfnfc524mr4py3re6dkg62gm7cnb4qgy4v3e" spellcheck="false">
         copyToClipboard(copyTarget);
         return;
       }
-      const compareTarget = e.target.closest("[data-compare-address]");
+      const compareTarget = e.target.closest("[data-compare-key]");
       if (compareTarget) {
         e.preventDefault();
-        selectComparison(compareTarget.getAttribute("data-compare-address"));
+        selectComparison(compareTarget.getAttribute("data-compare-key"));
         compareContent.scrollIntoView({ behavior: "smooth", block: "nearest" });
         return;
       }
@@ -1195,6 +1287,12 @@ bafkreia24gv4ucsdyihp7imfnfc524mr4py3re6dkg62gm7cnb4qgy4v3e" spellcheck="false">
       }
     }
 
+    function selectedNetwork() {
+      const checked = document.querySelector('input[name="network"]:checked');
+      const v = checked?.value;
+      return v === "zone" ? "zone" : "org";
+    }
+
     submitBtn.addEventListener("click", async () => {
       const items = inputsEl.value
         .split(/\r?\n/)
@@ -1216,11 +1314,12 @@ bafkreia24gv4ucsdyihp7imfnfc524mr4py3re6dkg62gm7cnb4qgy4v3e" spellcheck="false">
       submitStatus.classList.remove("error");
       submitStatus.textContent = "Submitting…";
 
+      const network = selectedNetwork();
       try {
         const res = await api("/api/jobs", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ items }),
+          body: JSON.stringify({ items, network }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);

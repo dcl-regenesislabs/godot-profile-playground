@@ -12,9 +12,9 @@ There are no tests, lint, or build steps configured.
 
 ## Runtime prerequisites
 
-Docker daemon must be running and the host must be able to pull `quay.io/decentraland/godot-explorer:latest` (override with `DOCKER_IMAGE` to use a locally-built tag). Network access to the catalyst (`CATALYST_URL`, default `https://peer.decentraland.org`) is also required.
+Docker daemon must be running and the host must be able to pull `quay.io/decentraland/godot-explorer:latest` (override with `DOCKER_IMAGE` to use a locally-built tag). Network access to the catalysts (`CATALYST_URL_ORG`, default `https://peer.decentraland.org`; `CATALYST_URL_ZONE`, default `https://peer.decentraland.zone`) is also required. Each enqueued job carries a `network` field (`org` or `zone`) selecting which catalyst to fetch the profile from; the comparison panel mirrors this with `wearable-preview.decentraland.<tld>/`.
 
-Environment variables: `PORT` (3000), `DOCKER_IMAGE`, `CATALYST_URL`, `RENDER_TIMEOUT_MS` (120000).
+Environment variables: `PORT` (3000), `DOCKER_IMAGE`, `CATALYST_URL_ORG`, `CATALYST_URL_ZONE`, `RENDER_TIMEOUT_MS` (120000).
 
 ## Architecture
 

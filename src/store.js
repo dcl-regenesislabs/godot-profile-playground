@@ -29,11 +29,12 @@ export class ResultsStore {
     return this.results;
   }
 
-  async save({ address, name, bodyBuffer, faceBuffer, preview, signature }) {
+  async save({ address, name, network, bodyBuffer, faceBuffer, preview, signature }) {
     await this.ready;
+    const net = network === "zone" ? "zone" : "org";
     const at = new Date().toISOString();
-    const bodyName = `${address}.png`;
-    const faceName = faceBuffer ? `${address}_face.png` : null;
+    const bodyName = `${net}_${address}.png`;
+    const faceName = faceBuffer ? `${net}_${address}_face.png` : null;
 
     await writeFile(join(this.imagesDir, bodyName), bodyBuffer);
     if (faceBuffer) await writeFile(join(this.imagesDir, faceName), faceBuffer);
@@ -41,13 +42,16 @@ export class ResultsStore {
     const entry = {
       address,
       name,
+      network: net,
       body: bodyName,
       face: faceName,
       at,
       preview: preview ?? null,
       signature: signature ?? null,
     };
-    const filtered = this.results.filter((r) => r.address !== address);
+    const filtered = this.results.filter(
+      (r) => !(r.address === address && (r.network ?? "org") === net),
+    );
     this.results = [entry, ...filtered].slice(0, MAX_RESULTS);
     await this.#flush();
     await this.#sweepOrphans();
