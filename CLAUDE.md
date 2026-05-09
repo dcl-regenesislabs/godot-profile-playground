@@ -33,6 +33,7 @@ Key contracts to preserve when changing render code:
 - The container expects `/app/avatars.json` (read-only mount) and writes into `/app/output`.
 - `entity` in the payload doubles as the output filename stem; renaming the field or filename pattern requires updating both the JSON and the post-run reads.
 - `HttpError(status, message)` is the only error type the HTTP layer treats as non-500 — throw it from anywhere in `src/` to surface a specific status.
+- For zone (testnet) jobs, `runGodot` must pass `--dclenv zone` to the godot binary. The renderer's wearable fetcher reads `urls::peer_content()` derived from a global `dclenv` (default `org`); pointing the avatars.json `baseUrl` at `peer.decentraland.zone` only fixes the profile fetch, not the `entities/active` POST. Without `--dclenv`, Amoy wearables resolve to `null` and the avatar renders bald. The `--dclenv` flag was added in godot-explorer commit `22fca47c` — older images need the `--fake-deeplink "decentraland://open?dclenv=zone"` workaround. See `decentraland/godot-explorer/docs/PROFILE_IMAGE.md` ("Catalyst environment") for the full explanation.
 
 ## Frontend
 

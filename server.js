@@ -70,6 +70,7 @@ async function processJob(job) {
   const result = await renderProfile({
     profile,
     catalystUrl,
+    network,
     godotBin: GODOT_BIN,
     godotWorkdir: GODOT_WORKDIR,
     timeoutMs: RENDER_TIMEOUT_MS,

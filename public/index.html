@@ -868,6 +868,7 @@ bafkreia24gv4ucsdyihp7imfnfc524mr4py3re6dkg62gm7cnb4qgy4v3e" spellcheck="false">
     }
 
     function unityPreviewUrl(r) {
+      const tld = networkOf(r);
       const params = new URLSearchParams({
         profile: r.address,
         mode: "profile",
@@ -879,6 +880,7 @@ bafkreia24gv4ucsdyihp7imfnfc524mr4py3re6dkg62gm7cnb4qgy4v3e" spellcheck="false">
         lockBeta: "true",
         background: COMPARE_BG_HEX,
         disableDefaultWearables: "true",
+        env: tld === "zone" ? "dev" : "prod",
       });
       const p = r.preview;
       if (p) {
@@ -887,7 +889,6 @@ bafkreia24gv4ucsdyihp7imfnfc524mr4py3re6dkg62gm7cnb4qgy4v3e" spellcheck="false">
         if (p.hairColor) params.set("hairColor", p.hairColor);
         if (p.skinColor) params.set("skinColor", p.skinColor);
       }
-      const tld = networkOf(r);
       return `https://wearable-preview.decentraland.${tld}/?${params.toString()}`;
     }
 

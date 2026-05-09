@@ -21,9 +21,12 @@ function buildPayload({ ethAddress, avatar, catalystUrl }) {
   };
 }
 
-function runGodot({ binary, workdir, timeoutMs }) {
+function runGodot({ binary, workdir, timeoutMs, network }) {
   return new Promise((resolve, reject) => {
     const args = ["--rendering-driver", "opengl3", "--avatar-renderer", "--avatars", "avatars.json"];
+    if (network === "zone") {
+      args.push("--dclenv", "zone");
+    }
     const child = spawn(binary, args, {
       cwd: workdir,
       stdio: ["ignore", "pipe", "pipe"],
@@ -59,7 +62,7 @@ function withRenderLock(fn) {
   return next;
 }
 
-export async function renderProfile({ profile, catalystUrl, godotBin, godotWorkdir, timeoutMs }) {
+export async function renderProfile({ profile, catalystUrl, network, godotBin, godotWorkdir, timeoutMs }) {
   if (!profile?.ethAddress) {
     throw new HttpError(500, "profile is missing ethAddress");
   }
@@ -79,7 +82,7 @@ export async function renderProfile({ profile, catalystUrl, godotBin, godotWorkd
       });
       await writeFile(avatarsPath, JSON.stringify(payload, null, 2));
 
-      await runGodot({ binary: godotBin, workdir: godotWorkdir, timeoutMs });
+      await runGodot({ binary: godotBin, workdir: godotWorkdir, timeoutMs, network });
 
       const [bodyBuffer, faceBuffer] = await Promise.all([
         readFile(bodyPath),

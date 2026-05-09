@@ -3,7 +3,7 @@ services:
     build:
       context: .
       args:
-        GODOT_IMAGE: ${GODOT_IMAGE:-quay.io/decentraland/godot-explorer:8ed31d84089cba0d4c37243ed48160ad6cd6f6ff}
+        GODOT_IMAGE: ${GODOT_IMAGE:-quay.io/decentraland/godot-explorer:be6db73f926425785932d9b6aa8b97c43beafb91}
     image: godot-profile-viewer:dev
     container_name: godot-profile-viewer
     ports:
